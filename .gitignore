@@ -1,0 +1,17 @@
+# Deny list to prevent Agent Indexer from hanging
+.env
+.env.local
+node_modules/
+dist/
+build/
+.DS_Store
+
+# Large Data Files (Causing indexing hangs)
+SAMPLE_DATA.xlsx
+*.xlsx
+*.csv
+
+# Brand Assets
+*.png
+*.jpeg
+*.jpg

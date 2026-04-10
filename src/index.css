@@ -1,0 +1,73 @@
+:root {
+  --nar-teal: #00685f;
+  --nar-emerald: #50C878;
+  --nar-orange: #e17726;
+  --nar-black: #000000;
+  --nar-white: #ffffff;
+  --nar-bg: #f8f9fa;
+  --nar-font-primary: 'Poppins', sans-serif;
+  --nar-font-brand: 'Montserrat', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--nar-font-primary);
+  background-color: var(--nar-bg);
+  color: var(--nar-black);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, .brand-font {
+  font-family: var(--nar-font-brand);
+  font-weight: 600;
+}
+
+.nar-button {
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  background-color: var(--nar-orange);
+  color: var(--nar-white);
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.8rem 1.5rem;
+}
+
+.nar-button:hover {
+  background-color: var(--nar-emerald);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(80, 200, 120, 0.4);
+}
+
+.nar-button-primary {
+  background-color: var(--nar-orange);
+  color: var(--nar-white);
+}
+
+.nar-button-primary:hover {
+  background-color: var(--nar-emerald);
+}
+
+/* Splash Screen Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
