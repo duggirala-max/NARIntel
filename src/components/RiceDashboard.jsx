@@ -92,181 +92,194 @@ const RiceDashboard = ({ onBack }) => {
     dataIntelligence: dataIntelligence ? { ...dataIntelligence, extractionResults } : null
   };
 
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fcfcfc', display: 'flex', flexDirection: 'column' }}>
+      {/* Mobile Menu Overlay */}
+      <div className={`mobile-menu ${isMenuOpen ? 'open' : ''}`}>
+        <button onClick={onBack} className="nar-button" style={{ width: '100%', marginBottom: '1rem' }}>
+          Back to Hub
+        </button>
+        {isDashboardActive && !isRunning && (
+          <button onClick={() => { setShowExportModal(true); setIsMenuOpen(false); }} className="nar-button" style={{ width: '100%' }}>
+            Generate Report
+          </button>
+        )}
+      </div>
+
       <header style={{
-        backgroundColor: 'white', padding: '1.2rem 3rem',
+        backgroundColor: 'white', padding: isMobile ? '1rem 1.5rem' : '1.2rem 3rem',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         borderBottom: '1px solid #eee', position: 'sticky', top: 0, zIndex: 100
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <button onClick={onBack} className="nar-button"
-            style={{ marginRight: '2rem', padding: '0.4rem 0.8rem', fontSize: '0.7rem' }}>
-            BACK TO HUB
-          </button>
-          <img src={logo} alt="Noor AL Reef" style={{ height: '45px', marginRight: '1rem' }} />
+          <img src={logo} alt="Noor AL Reef" style={{ height: isMobile ? '35px' : '45px', marginRight: '1rem' }} />
           <div>
-            <h1 style={{ fontSize: '1.2rem', color: 'var(--nar-black)', margin: 0 }}>
-              Noor AL Reef General Trading LLC
+            <h1 style={{ fontSize: isMobile ? '1rem' : '1.2rem', color: 'var(--nar-black)', margin: 0 }}>
+              Noor AL Reef
             </h1>
-            <p style={{ fontSize: '0.7rem', color: 'var(--nar-teal)', fontWeight: 'bold', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Rice Intelligence (HS 1006)
+            <p style={{ fontSize: '0.6rem', color: 'var(--nar-teal)', fontWeight: 'bold', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Rice Intelligence
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-          {dashboardData?.rates && (
-            <div style={{ display: 'flex', gap: '0.8rem', backgroundColor: '#f8f9fa', padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid #eee' }}>
-              <div style={{ fontSize: '0.8rem' }}>
-                <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.aed_inr}</strong>
-                <span style={{ color: '#888' }}> AED/INR</span>
-              </div>
-              <div style={{ fontSize: '0.8rem', borderLeft: '1px solid #ddd', paddingLeft: '0.8rem' }}>
-                <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.usd_inr}</strong>
-                <span style={{ color: '#888' }}> USD/INR</span>
-              </div>
-              <div style={{ fontSize: '0.8rem', borderLeft: '1px solid #ddd', paddingLeft: '0.8rem' }}>
-                <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.eur_inr || 'N/A'}</strong>
-                <span style={{ color: '#888' }}> EUR/INR</span>
-              </div>
-            </div>
-          )}
-          {!isDashboardActive ? (
-            <button onClick={handleRunDashboard} className="nar-button">
-              Start Dashboard Monitoring
+        {isMobile ? (
+          <button 
+            className={`hamburger ${isMenuOpen ? 'open' : ''}`}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            <div />
+            <div />
+            <div />
+          </button>
+        ) : (
+          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+            <button onClick={onBack} className="nar-button"
+              style={{ padding: '0.4rem 1.2rem', fontSize: '0.7rem', backgroundColor: 'var(--nar-teal)' }}>
+              BACK TO HUB
             </button>
-          ) : (
-            <button onClick={() => setShowExportModal(true)} className="nar-button">
-              Generate Report
-            </button>
-          )}
-        </div>
+            {dashboardData?.rates && (
+              <div style={{ display: 'flex', gap: '0.8rem', backgroundColor: '#f8f9fa', padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid #eee' }}>
+                <div style={{ fontSize: '0.8rem' }}>
+                  <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.aed_inr}</strong>
+                  <span style={{ color: '#888' }}> AED</span>
+                </div>
+                <div style={{ fontSize: '0.8rem', borderLeft: '1px solid #ddd', paddingLeft: '0.8rem' }}>
+                  <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.usd_inr}</strong>
+                  <span style={{ color: '#888' }}> USD</span>
+                </div>
+              </div>
+            )}
+            {!isDashboardActive ? (
+              <button onClick={handleRunDashboard} className="nar-button" style={{ fontSize: '0.8rem' }}>
+                Start Monitoring
+              </button>
+            ) : (
+              <button onClick={() => setShowExportModal(true)} className="nar-button" style={{ fontSize: '0.8rem' }}>
+                Generate Report
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
-      <main style={{ padding: '3rem', flex: 1 }}>
+      {isMobile && dashboardData?.rates && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '1.2rem', backgroundColor: '#f8f9fa', padding: '0.6rem', borderBottom: '1px solid #eee' }}>
+           <div style={{ fontSize: '0.75rem' }}>
+             <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.aed_inr}</strong>
+             <span style={{ color: '#888' }}> AED/INR</span>
+           </div>
+           <div style={{ fontSize: '0.75rem', borderLeft: '1px solid #ddd', paddingLeft: '1.2rem' }}>
+             <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.usd_inr}</strong>
+             <span style={{ color: '#888' }}> USD/INR</span>
+           </div>
+        </div>
+      )}
+
+      <main style={{ padding: isMobile ? '1.5rem' : '3rem', flex: 1 }}>
         {!isDashboardActive ? (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '50vh', textAlign: 'center' }}>
-            <div style={{ width: '4px', height: '100px', backgroundColor: 'var(--nar-teal)', marginBottom: '2rem' }} />
-            <h2 style={{ fontSize: '1.8rem', marginBottom: '1rem', fontWeight: '500' }}>
-              Rice Surveillance Ready
+            <div style={{ width: '4px', height: '60px', backgroundColor: 'var(--nar-teal)', marginBottom: '1.5rem' }} />
+            <h2 style={{ fontSize: isMobile ? '1.4rem' : '1.8rem', marginBottom: '1rem', fontWeight: '500' }}>
+              Surveillance Ready
             </h2>
-            <p style={{ color: '#666', maxWidth: '500px', lineHeight: '1.8', fontSize: '0.95rem' }}>
-              Select <strong>"Start Dashboard Monitoring"</strong> to synchronize with the latest rice market indicators and risk alerts.
+            <p style={{ color: '#666', maxWidth: '400px', lineHeight: '1.6', fontSize: '0.85rem' }}>
+              Select <strong>"Start Monitoring"</strong> to synchronize with the latest market indicators.
             </p>
+            {isMobile && (
+              <button onClick={handleRunDashboard} className="nar-button" style={{ marginTop: '2rem', width: '100%', backgroundColor: 'var(--nar-teal)' }}>
+                Start Dashboard Monitoring
+              </button>
+            )}
           </div>
         ) : isRunning ? (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
             <div className="spinner" />
-            <p style={{ marginTop: '1.5rem', color: 'var(--nar-teal)', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.8rem' }}>
-              Compiling Rice Market Field Reports...
+            <p style={{ marginTop: '1.5rem', color: 'var(--nar-teal)', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.75rem' }}>
+              Compiling Data...
             </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '2rem' }}>
-
-            {/* News Column */}
-            <div style={{ gridColumn: 'span 8' }}>
-              <h3 style={{ marginBottom: '1.5rem', fontSize: '0.9rem', textTransform: 'uppercase', color: '#888', letterSpacing: '0.05em' }}>
-                <span style={{ color: 'var(--nar-teal)', marginRight: '8px' }}>◆</span>
-                Global Risk Intelligence (HS 1006)
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {dashboardData?.news?.length > 0 ? dashboardData.news.map((news, i) => (
-                  <div key={i} style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '24px', border: '1px solid #f0f0f0', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--nar-teal)', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                        {news.source}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                        <ImpactBadge impact={news.aiImpact} />
-                        <button
-                          title="Share via WhatsApp"
-                          onClick={() => whatsappShare(`[NOOR AL REEF ALERT]\n${news.title}\nSource: ${news.source}\nImpact: ${news.aiImpact}\nDirective: ${news.aiAction}\n-- Noor AL Reef Executive Intelligence`)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: '2px' }}
-                        >
-                          &#128172;
-                        </button>
-                      </div>
-                    </div>
-                    <h4 style={{ fontSize: '1.05rem', marginBottom: '1rem', color: '#111' }}>{news.title}</h4>
-                    <div style={{ backgroundColor: '#fcfcfc', border: '1px solid #eee', padding: '1rem', borderRadius: '14px' }}>
-                      <p style={{ fontSize: '0.83rem', color: '#555', lineHeight: '1.6', margin: 0 }}>
-                        <strong>Operational Directive:</strong> {news.aiAction}
-                      </p>
-                    </div>
-                  </div>
-                )) : (
-                  <div style={{ padding: '3rem', backgroundColor: '#f9f9f9', borderRadius: '24px', color: '#aaa', textAlign: 'center', border: '1px dashed #ddd' }}>
-                    No actionable intelligence anomalies detected in this session.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sidebar */}
-            <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '2rem' }}>
+            
+            {/* Sidebar (Moved top for mobile) */}
+            <div style={{ flex: isMobile ? 'none' : '0 0 320px', display: 'flex', flexDirection: 'column', gap: '1.5rem', order: isMobile ? 1 : 2 }}>
+              
               {/* Rice Index */}
-              <div style={{ backgroundColor: 'var(--nar-black)', color: 'white', padding: '2.5rem', borderRadius: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
-                <div style={{ fontSize: '0.72rem', color: '#888', textTransform: 'uppercase', marginBottom: '0.5rem', fontWeight: '600' }}>
-                  Live Market Index (Rice)
+              <div style={{ backgroundColor: 'var(--nar-black)', color: 'white', padding: isMobile ? '2rem' : '2.5rem', borderRadius: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Market Index (Rice)
                 </div>
-                <div style={{ fontSize: '2.8rem', fontWeight: 'bold', color: 'var(--nar-emerald)', letterSpacing: '-0.02em' }}>
+                <div style={{ fontSize: isMobile ? '2.2rem' : '2.8rem', fontWeight: 'bold', color: 'var(--nar-emerald)', letterSpacing: '-0.02em' }}>
                   INR {dashboardData?.riceBenchmark || '0.00'}
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '0.4rem' }}>per kg</div>
-                <div style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '0.8rem', lineHeight: '1.5' }}>
-                  Synchronized with IndiaMART commodity benchmarks.
                 </div>
                 <button
                   onClick={shareMarketIndex}
-                  style={{ marginTop: '1.2rem', background: 'none', border: '1px solid #333', color: '#aaa', borderRadius: '8px', padding: '0.4rem 0.8rem', fontSize: '0.7rem', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                  style={{ marginTop: '1rem', background: 'none', border: '1px solid #333', color: '#aaa', borderRadius: '8px', padding: '0.4rem 0.8rem', fontSize: '0.65rem', cursor: 'pointer', textTransform: 'uppercase' }}
                 >
                   &#128172; Share Index
                 </button>
               </div>
 
               {/* Bulk Analytics */}
-              <div style={{ border: '1px solid #eee', padding: '2.5rem', borderRadius: '28px', backgroundColor: 'white', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' }}>
-                <h4 style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: '#111', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Bulk Analytics Deep-Dive
+              <div style={{ border: '1px solid #eee', padding: isMobile ? '1.8rem' : '2.5rem', borderRadius: '28px', backgroundColor: 'white' }}>
+                <h4 style={{ marginBottom: '1.2rem', fontSize: '0.8rem', color: '#111', textTransform: 'uppercase' }}>
+                  Bulk Analytics
                 </h4>
                 {dataIntelligence ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.6rem' }}>
-                    <div style={{ borderLeft: '4px solid var(--nar-emerald)', paddingLeft: '1.2rem' }}>
-                      <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: '600' }}>Price Benchmarking</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '600', marginTop: '0.3rem' }}>
-                        {dataIntelligence.priceAudit?.overMarketCount} Higher than Live Index
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.2rem' }}>
-                        {dataIntelligence.priceAudit?.insight}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                    <div style={{ borderLeft: '3px solid var(--nar-emerald)', paddingLeft: '1rem' }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '600' }}>
+                        {dataIntelligence.priceAudit?.overMarketCount} Higher Index
                       </div>
                     </div>
-                    <div style={{ borderLeft: '4px solid var(--nar-teal)', paddingLeft: '1.2rem' }}>
-                      <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: '600' }}>Partner Engagement (90D)</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '600', marginTop: '0.3rem' }}>
-                        {dataIntelligence.churnStatus?.inactive30_90Days} Non-Performing Contracts
-                      </div>
-                    </div>
-                    <div style={{ backgroundColor: '#f9f9f9', padding: '1.3rem', borderRadius: '14px', fontSize: '0.85rem', color: '#333', border: '1px solid #eee', lineHeight: '1.6' }}>
-                      <strong>Executive Proposal:</strong> {dataIntelligence.monetizationDirective}
+                    <div style={{ backgroundColor: '#f9f9f9', padding: '1rem', borderRadius: '12px', fontSize: '0.8rem', color: '#333' }}>
+                      <strong>Proposal:</strong> {dataIntelligence.monetizationDirective}
                     </div>
                   </div>
                 ) : (
-                  <div style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#fafafa', borderRadius: '18px', color: '#aaa', fontStyle: 'italic', fontSize: '0.82rem', border: '1px dashed #eee' }}>
-                    {workerStatus || (uploadedFile ? 'Synthesizing Dataset Results...' : 'Awaiting bulk dataset for analysis.')}
+                  <div style={{ textAlign: 'center', padding: '1.5rem', backgroundColor: '#fafafa', borderRadius: '14px', color: '#aaa', fontSize: '0.75rem' }}>
+                    {workerStatus || 'Awaiting bulk dataset.'}
                   </div>
                 )}
-
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.xls,.csv" style={{ display: 'none' }} />
                 <button
                   onClick={() => fileInputRef.current.click()}
-                  style={{ width: '100%', marginTop: '2rem' }}
-                  className="nar-button"
+                  style={{ width: '100%', marginTop: '1.5rem', padding: '0.8rem', fontSize: '0.8rem', backgroundColor: 'var(--nar-teal)' }}
+                  className="nar-button-primary"
                 >
-                  {uploadedFile ? 'Dataset Synchronized' : 'Upload Bulk Trade Data'}
+                  {uploadedFile ? 'Dataset Sync' : 'Upload Data'}
                 </button>
+              </div>
+            </div>
+
+            {/* News Column */}
+            <div style={{ flex: 1, order: isMobile ? 2 : 1 }}>
+              <h3 style={{ marginBottom: '1.5rem', fontSize: '0.8rem', textTransform: 'uppercase', color: '#888' }}>
+                Global Risk Intelligence
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {dashboardData?.news?.map((news, i) => (
+                  <div key={i} style={{ backgroundColor: 'white', padding: isMobile ? '1.5rem' : '2rem', borderRadius: '24px', border: '1px solid #f0f0f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--nar-teal)', fontWeight: 'bold' }}>{news.source}</span>
+                      <ImpactBadge impact={news.aiImpact} />
+                    </div>
+                    <h4 style={{ fontSize: '0.95rem', marginBottom: '0.8rem', color: '#111' }}>{news.title}</h4>
+                    <p style={{ fontSize: '0.78rem', color: '#666', lineHeight: '1.5', margin: 0 }}>
+                      <strong>Action:</strong> {news.aiAction}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

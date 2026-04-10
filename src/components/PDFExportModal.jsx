@@ -77,10 +77,11 @@ const ExportModal = ({ onClose, dashboardData, dataIntelligence, dashboardType =
     }}>
       <div style={{
         backgroundColor: 'white', borderRadius: '24px',
-        width: '480px', padding: '2.5rem',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.1)'
+        width: 'min(480px, 95%)', padding: '2rem',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.1)',
+        maxHeight: '90vh', overflowY: 'auto'
       }}>
-        <h2 style={{ color: 'var(--nar-black)', marginBottom: '0.5rem', fontSize: '1.4rem' }}>
+        <h2 style={{ color: 'var(--nar-black)', marginBottom: '0.5rem', fontSize: '1.2rem' }}>
           Intelligence Report Generation
         </h2>
         <p style={{ color: '#888', marginBottom: '2rem', fontSize: '0.82rem', lineHeight: '1.5' }}>
