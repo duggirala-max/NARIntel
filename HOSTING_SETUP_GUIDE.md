@@ -84,8 +84,8 @@ After the site is created:
 
 | Key | Value |
 |-----|-------|
-| `VITE_ADMIN_USER` | `vishnu@nooralreef.com` |
-| `VITE_ADMIN_PASS` | `@ChaithuVS05@` |
+| `VITE_ADMIN_USER` | (your chosen admin email) |
+| `VITE_ADMIN_PASS` | (your chosen secure password) |
 | `VITE_GROQ_EGG_NEWS_KEY` | (your NAR-Egg-News Groq key) |
 | `VITE_GROQ_EGG_DATA_KEY` | (your NAR-Egg-Data Groq key) |
 | `VITE_GROQ_RICE_NEWS_KEY` | (your NAR-Rice-News Groq key) |
@@ -101,7 +101,7 @@ This redeploy picks up the new environment variables.
 
 1. Netlify will give you a URL like `https://your-site-name.netlify.app`.
 2. Open that URL in your browser.
-3. Log in with `vishnu@nooralreef.com` and your password.
+3. Log in with your chosen admin email and password.
 4. Click "Start Dashboard Monitoring" in either module.
 5. Verify news loads and Groq analysis runs.
 
