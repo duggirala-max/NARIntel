@@ -23,7 +23,7 @@ const ImpactBadge = ({ impact }) => {
   );
 };
 
-const RiceDashboard = ({ onBack }) => {
+const EggDashboard = ({ onBack }) => {
   const [isRunning, setIsRunning] = useState(false);
   const [isDashboardActive, setIsDashboardActive] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
@@ -37,7 +37,7 @@ const RiceDashboard = ({ onBack }) => {
   const workerRef = useRef(null);
 
   useEffect(() => {
-    const cached = localStorage.getItem('nar_rice_cache');
+    const cached = localStorage.getItem('nar_egg_cache');
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
@@ -45,10 +45,10 @@ const RiceDashboard = ({ onBack }) => {
           setDashboardData(parsed.data);
           setIsDashboardActive(true);
         } else {
-          localStorage.removeItem('nar_rice_cache');
+          localStorage.removeItem('nar_egg_cache');
         }
       } catch (e) {
-        localStorage.removeItem('nar_rice_cache');
+        localStorage.removeItem('nar_egg_cache');
       }
     }
   }, []);
@@ -62,8 +62,8 @@ const RiceDashboard = ({ onBack }) => {
       if (status === 'SUCCESS') {
         setExtractionResults(compactedSignal);
         setWorkerStatus('Analyzing with AI...');
-        const currentPrice = dashboardData?.benchmarks?.basmati || '0';
-        const ai = await analyzeDataIntelligence(compactedSignal, currentPrice, 'rice');
+        const currentPrice = dashboardData?.namakkal || '0';
+        const ai = await analyzeDataIntelligence(compactedSignal, currentPrice, 'egg');
         setDataIntelligence(ai);
         setWorkerStatus('');
       } else if (status === 'PROGRESS') {
@@ -74,14 +74,14 @@ const RiceDashboard = ({ onBack }) => {
       }
     };
     return () => workerRef.current.terminate();
-  }, [dashboardData?.benchmarks]);
+  }, [dashboardData?.namakkal]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploadedFile(file);
     setWorkerStatus('Processing dataset...');
-    workerRef.current.postMessage({ action: 'PROCESS_DATA', file, hsCode: '1006' });
+    workerRef.current.postMessage({ action: 'PROCESS_DATA', file, hsCode: '0407' });
   };
 
   const handleRunDashboard = async (forceRefresh = false) => {
@@ -92,7 +92,7 @@ const RiceDashboard = ({ onBack }) => {
     setExtractionResults(null);
     try {
       if (!forceRefresh) {
-        const cached = localStorage.getItem('nar_rice_cache');
+        const cached = localStorage.getItem('nar_egg_cache');
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
@@ -105,10 +105,10 @@ const RiceDashboard = ({ onBack }) => {
         }
       }
 
-      const rawMarketData = await scrapeMarketData('rice');
-      const analyzedNews = await analyzeNewsIntelligence(rawMarketData.news, 'rice');
+      const rawMarketData = await scrapeMarketData('egg');
+      const analyzedNews = await analyzeNewsIntelligence(rawMarketData.news, 'egg');
       const finalData = { ...rawMarketData, news: analyzedNews };
-      localStorage.setItem('nar_rice_cache', JSON.stringify({ timestamp: Date.now(), data: finalData }));
+      localStorage.setItem('nar_egg_cache', JSON.stringify({ timestamp: Date.now(), data: finalData }));
       setDashboardData(finalData);
     } catch (e) {
       console.error('Dashboard run error:', e);
@@ -119,13 +119,17 @@ const RiceDashboard = ({ onBack }) => {
 
   const shareMarketIndex = () => {
     const d = dashboardData;
-    const msg = `[NOOR AL REEF MARKET UPDATE]\nBasmati: INR ${d.benchmarks?.basmati}\nPachari: INR ${d.benchmarks?.nonBasmati}\nSona Masuri: INR ${d.benchmarks?.sonaMasuri}\nAED/INR: ${d.rates?.aed_inr}\nUSD/INR: ${d.rates?.usd_inr}\nEUR/INR: ${d.rates?.eur_inr}\n-- Noor AL Reef Executive Intelligence`;
-    whatsappShare(msg);
+    whatsappShare(
+      `[NOOR AL REEF MARKET UPDATE]\nNamakkal Index: INR ${d.namakkal}\nTrend: ${d.trend || 'N/A'}\nAED/INR: ${d.rates?.aed_inr}\nUSD/INR: ${d.rates?.usd_inr}\nEUR/INR: ${d.rates?.eur_inr || 'N/A'}\n-- Noor AL Reef Executive Intelligence`
+    );
   };
 
   const exportModalData = {
     ...dashboardData,
-    dataIntelligence: dataIntelligence ? { ...dataIntelligence, extractionResults } : null
+    dataIntelligence: dataIntelligence ? {
+      ...dataIntelligence,
+      extractionResults
+    } : null
   };
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -162,8 +166,8 @@ const RiceDashboard = ({ onBack }) => {
             <h1 style={{ fontSize: isMobile ? '1rem' : '1.2rem', color: 'var(--nar-black)', margin: 0 }}>
               Noor AL Reef
             </h1>
-            <p style={{ fontSize: '0.6rem', color: 'var(--nar-teal)', fontWeight: 'bold', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Rice Intelligence
+            <p style={{ fontSize: '0.6rem', color: 'var(--nar-orange)', fontWeight: 'bold', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Egg Intelligence
             </p>
           </div>
         </div>
@@ -180,7 +184,7 @@ const RiceDashboard = ({ onBack }) => {
         ) : (
           <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
             <button onClick={onBack} className="nar-button"
-              style={{ padding: '0.4rem 1.2rem', fontSize: '0.7rem', backgroundColor: 'var(--nar-teal)' }}>
+              style={{ padding: '0.4rem 1.2rem', fontSize: '0.7rem' }}>
               BACK TO HUB
             </button>
             {dashboardData?.rates && (
@@ -237,7 +241,7 @@ const RiceDashboard = ({ onBack }) => {
       <main style={{ padding: isMobile ? '1.5rem' : '3rem', flex: 1 }}>
         {!isDashboardActive ? (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '50vh', textAlign: 'center' }}>
-            <div style={{ width: '4px', height: '60px', backgroundColor: 'var(--nar-teal)', marginBottom: '1.5rem' }} />
+            <div style={{ width: '4px', height: '60px', backgroundColor: 'var(--nar-orange)', marginBottom: '1.5rem' }} />
             <h2 style={{ fontSize: isMobile ? '1.4rem' : '1.8rem', marginBottom: '1rem', fontWeight: '500' }}>
               Surveillance Ready
             </h2>
@@ -245,7 +249,7 @@ const RiceDashboard = ({ onBack }) => {
               Select <strong>"Start Monitoring"</strong> to synchronize with the latest market indicators.
             </p>
             {isMobile && (
-              <button onClick={handleRunDashboard} className="nar-button" style={{ marginTop: '2rem', width: '100%', backgroundColor: 'var(--nar-teal)' }}>
+              <button onClick={handleRunDashboard} className="nar-button" style={{ marginTop: '2rem', width: '100%' }}>
                 Start Dashboard Monitoring
               </button>
             )}
@@ -253,7 +257,7 @@ const RiceDashboard = ({ onBack }) => {
         ) : isRunning ? (
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
             <div className="spinner" />
-            <p style={{ marginTop: '1.5rem', color: 'var(--nar-teal)', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.75rem' }}>
+            <p style={{ marginTop: '1.5rem', color: 'var(--nar-orange)', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.75rem' }}>
               Compiling Data...
             </p>
           </div>
@@ -261,45 +265,31 @@ const RiceDashboard = ({ onBack }) => {
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '2rem' }}>
             
             {/* Sidebar (Moved top for mobile) */}
-            <div style={{ flex: isMobile ? 'none' : '0 0 320px', display: 'flex', flexDirection: 'column', gap: '1rem', order: isMobile ? 1 : 2 }}>
+            <div style={{ flex: isMobile ? 'none' : '0 0 320px', display: 'flex', flexDirection: 'column', gap: '1.5rem', order: isMobile ? 1 : 2 }}>
               
-              {/* Rice Indices */}
-              <div style={{ backgroundColor: 'var(--nar-black)', color: 'white', padding: isMobile ? '1.5rem' : '2rem', borderRadius: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
-                <div style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', marginBottom: '1rem', fontWeight: '600', textAlign: 'center' }}>
-                  Market Indices (Rs/kg)
+              {/* Namakkal Index */}
+              <div style={{ backgroundColor: 'var(--nar-black)', color: 'white', padding: isMobile ? '2rem' : '2.5rem', borderRadius: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', marginBottom: '0.5rem', fontWeight: '600' }}>
+                  Market Index (Namakkal)
                 </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#aaa' }}>Basmati</span>
-                    <strong style={{ fontSize: '1.1rem', color: 'var(--nar-emerald)' }}>{dashboardData?.benchmarks?.basmati}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#aaa' }}>Pachari</span>
-                    <strong style={{ fontSize: '1.1rem', color: 'var(--nar-emerald)' }}>{dashboardData?.benchmarks?.nonBasmati}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#aaa' }}>Sona Masuri</span>
-                    <strong style={{ fontSize: '1.1rem', color: 'var(--nar-emerald)' }}>{dashboardData?.benchmarks?.sonaMasuri}</strong>
-                  </div>
+                <div style={{ fontSize: isMobile ? '2.2rem' : '2.8rem', fontWeight: 'bold', color: 'var(--nar-emerald)', letterSpacing: '-0.02em' }}>
+                  INR {dashboardData?.namakkal || '0.00'}
                 </div>
-
-                <div style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.65rem' }}>
-                  <a href="https://dir.indiamart.com/impcat/basmati-rice.html" target="_blank" rel="noreferrer" style={{ color: '#888', textDecoration: 'underline' }}>
-                    Source Links: IndiaMART & Agriwatch
+                <div style={{ marginTop: '0.5rem', fontSize: '0.65rem' }}>
+                  <a href="https://e2necc.com/apps/home/neccrate" target="_blank" rel="noreferrer" style={{ color: '#888', textDecoration: 'underline' }}>
+                    Source: e2necc.com
                   </a>
                 </div>
-
                 <button
                   onClick={shareMarketIndex}
-                  style={{ width: '100%', marginTop: '1.5rem', background: 'none', border: '1px solid #333', color: '#aaa', borderRadius: '8px', padding: '0.4rem 0.8rem', fontSize: '0.65rem', cursor: 'pointer', textTransform: 'uppercase' }}
+                  style={{ marginTop: '1rem', background: 'none', border: '1px solid #333', color: '#aaa', borderRadius: '8px', padding: '0.4rem 0.8rem', fontSize: '0.65rem', cursor: 'pointer', textTransform: 'uppercase' }}
                 >
-                  &#128172; Share Indices
+                  &#128172; Share Index
                 </button>
               </div>
 
               {/* Bulk Analytics */}
-              <div style={{ border: '1px solid #eee', padding: isMobile ? '1.8rem' : '2rem', borderRadius: '28px', backgroundColor: 'white' }}>
+              <div style={{ border: '1px solid #eee', padding: isMobile ? '1.8rem' : '2.5rem', borderRadius: '28px', backgroundColor: 'white' }}>
                 <h4 style={{ marginBottom: '1.2rem', fontSize: '0.8rem', color: '#111', textTransform: 'uppercase' }}>
                   Bulk Analytics
                 </h4>
@@ -328,7 +318,7 @@ const RiceDashboard = ({ onBack }) => {
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.xls,.csv" style={{ display: 'none' }} />
                 <button
                   onClick={() => fileInputRef.current.click()}
-                  style={{ width: '100%', marginTop: '1.5rem', padding: '0.8rem', fontSize: '0.8rem', backgroundColor: 'var(--nar-teal)' }}
+                  style={{ width: '100%', marginTop: '1.5rem', padding: '0.8rem', fontSize: '0.8rem' }}
                   className="nar-button-primary"
                 >
                   {uploadedFile ? 'Dataset Sync' : 'Upload Data'}
@@ -348,15 +338,7 @@ const RiceDashboard = ({ onBack }) => {
                       <span style={{ fontSize: '0.7rem', color: 'var(--nar-teal)', fontWeight: 'bold' }}>{news.source}</span>
                       <ImpactBadge impact={news.aiImpact} />
                     </div>
-                    <h4 style={{ fontSize: news.url ? '0.9rem' : '0.95rem', marginBottom: '0.8rem', color: '#111' }}>
-                      {news.url ? (
-                        <a href={news.url} target="_blank" rel="noreferrer" style={{ color: '#111', textDecoration: 'underline' }}>
-                          {news.title}
-                        </a>
-                      ) : (
-                        news.title
-                      )}
-                    </h4>
+                    <h4 style={{ fontSize: '0.95rem', marginBottom: '0.8rem', color: '#111' }}>{news.title}</h4>
                     <p style={{ fontSize: '0.78rem', color: '#666', lineHeight: '1.5', margin: 0 }}>
                       <strong>Action:</strong> {news.aiAction}
                     </p>
@@ -377,7 +359,7 @@ const RiceDashboard = ({ onBack }) => {
           onClose={() => setShowExportModal(false)}
           dashboardData={exportModalData}
           dataIntelligence={dataIntelligence ? { ...dataIntelligence, extractionResults } : null}
-          dashboardType="rice"
+          dashboardType="egg"
         />
       )}
       {showInsightsModal && dataIntelligence && (
@@ -389,10 +371,10 @@ const RiceDashboard = ({ onBack }) => {
       )}
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top: 4px solid var(--nar-teal); border-radius: 50%; animation: spin 1s linear infinite; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top: 4px solid var(--nar-orange); border-radius: 50%; animation: spin 1s linear infinite; }
       `}</style>
     </div>
   );
 };
 
-export default RiceDashboard;
+export default EggDashboard;

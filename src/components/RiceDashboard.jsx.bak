@@ -348,15 +348,7 @@ const RiceDashboard = ({ onBack }) => {
                       <span style={{ fontSize: '0.7rem', color: 'var(--nar-teal)', fontWeight: 'bold' }}>{news.source}</span>
                       <ImpactBadge impact={news.aiImpact} />
                     </div>
-                    <h4 style={{ fontSize: news.url ? '0.9rem' : '0.95rem', marginBottom: '0.8rem', color: '#111' }}>
-                      {news.url ? (
-                        <a href={news.url} target="_blank" rel="noreferrer" style={{ color: '#111', textDecoration: 'underline' }}>
-                          {news.title}
-                        </a>
-                      ) : (
-                        news.title
-                      )}
-                    </h4>
+                    <h4 style={{ fontSize: '0.95rem', marginBottom: '0.8rem', color: '#111' }}>{news.title}</h4>
                     <p style={{ fontSize: '0.78rem', color: '#666', lineHeight: '1.5', margin: 0 }}>
                       <strong>Action:</strong> {news.aiAction}
                     </p>

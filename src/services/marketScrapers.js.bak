@@ -94,18 +94,11 @@ const extractArticles = (html, sourceName, region, keywords) => {
 
       const safeTitle = title.length > 150 ? title.substring(0, 147) + '...' : title;
 
-      let link = el.getAttribute('href') || '';
-      if (link && !link.startsWith('http')) {
-        const base = (NEWS_SOURCES.find(s => s.name === sourceName)?.url || '');
-        try { link = new URL(link, base).href; } catch(e) {}
-      }
-
       articles.push({
         id: `${sourceName.toLowerCase().replace(/\s/g, '_')}_${_newsIdCounter++}`,
         title: safeTitle,
         source: sourceName,
         region,
-        url: link,
         date: new Date().toISOString().split('T')[0]
       });
       if (articles.length >= 5) break; 
@@ -122,32 +115,32 @@ const extractArticles = (html, sourceName, region, keywords) => {
 const EGG_FALLBACK = {
   namakkal: '4.20',
   news: [
-    { id: 'e1', title: 'Egg Export Demand Rises in Middle East Ahead of Q2 Holidays', source: 'Arab News', aiImpact: 'POSITIVE', aiAction: 'Increase procurement to meet upcoming Gulf export demand peaks.', url: 'https://www.arabnews.com/economy' },
-    { id: 'e2', title: 'NECC Forecasts Price Stability for Egg Farmers This Quarter', source: 'Economic Times', aiImpact: 'MODERATE', aiAction: 'Maintain steady inventory levels as prices stabilize.', url: 'https://economictimes.indiatimes.com/news/economy/agriculture' },
-    { id: 'e3', title: 'Poultry Feed Costs Spike, Impacting Margins at Farm Gates', source: 'Financial Express', aiImpact: 'HIGH RISK', aiAction: 'Negotiate long-term feed contracts to hedge against rising costs.', url: 'https://www.financialexpress.com/market/commodities/' },
-    { id: 'e4', title: 'UAE Eases Import Duty on Processed Egg Products', source: 'Gulf News', aiImpact: 'POSITIVE', aiAction: 'Explore processing layer opportunities for duty-free UAE margins.', url: 'https://gulfnews.com/business/commodities' },
-    { id: 'e5', title: 'Namakkal Egg Exporters Hit Temporary Snag on Freight Delays', source: 'Financial Express', aiImpact: 'HIGH NEGATIVE', aiAction: 'Diversify shipping partners immediately to avoid contract penalties.', url: 'https://www.financialexpress.com/market/commodities/' },
-    { id: 'e6', title: 'Winter Demand Signals 5% Increase in Domestic Egg Offtake', source: 'Economic Times', aiImpact: 'POSITIVE', aiAction: 'Lock in current rates before winter surge pricing takes effect.', url: 'https://economictimes.indiatimes.com/news/economy/agriculture' },
-    { id: 'e7', title: 'Avian Influenza Isolated Case Reported in Northern Zone', source: 'Arab News', aiImpact: 'CRITICAL', aiAction: 'Audit southern farm sanitization protocols to protect export clearances.', url: 'https://www.arabnews.com/economy' },
-    { id: 'e8', title: 'Oman Shifts Vendor Preference Toward Indian Poultry Operators', source: 'Gulf News', aiImpact: 'POSITIVE', aiAction: 'Send direct sales outreach to Omani retail chains this week.', url: 'https://gulfnews.com/business/commodities' },
-    { id: 'e9', title: 'Global Packaging Shortage Affects Carton Supplies for Eggs', source: 'Economic Times', aiImpact: 'MODERATE', aiAction: 'Stockpile 3 months of export-grade pulp trays immediately.', url: 'https://economictimes.indiatimes.com/news/economy/agriculture' },
-    { id: 'e10', title: 'New Cold Chain Subsidy Announced for Agri-Exporters', source: 'Financial Express', aiImpact: 'POSITIVE', aiAction: 'File for subsidy grants to expand refrigerated warehouse capacity.', url: 'https://www.financialexpress.com/market/commodities/' }
+    { id: 'e1', title: 'Egg Export Demand Rises in Middle East Ahead of Q2 Holidays', source: 'Arab News', aiImpact: 'POSITIVE', aiAction: 'Increase procurement to meet upcoming Gulf export demand peaks.' },
+    { id: 'e2', title: 'NECC Forecasts Price Stability for Egg Farmers This Quarter', source: 'Economic Times', aiImpact: 'MODERATE', aiAction: 'Maintain steady inventory levels as prices stabilize.' },
+    { id: 'e3', title: 'Poultry Feed Costs Spike, Impacting Margins at Farm Gates', source: 'Financial Express', aiImpact: 'HIGH RISK', aiAction: 'Negotiate long-term feed contracts to hedge against rising costs.' },
+    { id: 'e4', title: 'UAE Eases Import Duty on Processed Egg Products', source: 'Gulf News', aiImpact: 'POSITIVE', aiAction: 'Explore processing layer opportunities for duty-free UAE margins.' },
+    { id: 'e5', title: 'Namakkal Egg Exporters Hit Temporary Snag on Freight Delays', source: 'Financial Express', aiImpact: 'HIGH NEGATIVE', aiAction: 'Diversify shipping partners immediately to avoid contract penalties.' },
+    { id: 'e6', title: 'Winter Demand Signals 5% Increase in Domestic Egg Offtake', source: 'Economic Times', aiImpact: 'POSITIVE', aiAction: 'Lock in current rates before winter surge pricing takes effect.' },
+    { id: 'e7', title: 'Avian Influenza Isolated Case Reported in Northern Zone', source: 'Arab News', aiImpact: 'CRITICAL', aiAction: 'Audit southern farm sanitization protocols to protect export clearances.' },
+    { id: 'e8', title: 'Oman Shifts Vendor Preference Toward Indian Poultry Operators', source: 'Gulf News', aiImpact: 'POSITIVE', aiAction: 'Send direct sales outreach to Omani retail chains this week.' },
+    { id: 'e9', title: 'Global Packaging Shortage Affects Carton Supplies for Eggs', source: 'Economic Times', aiImpact: 'MODERATE', aiAction: 'Stockpile 3 months of export-grade pulp trays immediately.' },
+    { id: 'e10', title: 'New Cold Chain Subsidy Announced for Agri-Exporters', source: 'Financial Express', aiImpact: 'POSITIVE', aiAction: 'File for subsidy grants to expand refrigerated warehouse capacity.' }
   ]
 };
 
 const RICE_FALLBACK = {
   benchmarks: { basmati: '114.50', nonBasmati: '38.20', sonaMasuri: '54.80' },
   news: [
-    { id: 'r1', title: 'India Maintains Non-Basmati Export Cap for Upcoming Trade Quarter', source: 'Financial Express', aiImpact: 'CRITICAL', aiAction: 'Diversify sourcing to non-capped regions immediately.', url: 'https://www.financialexpress.com/market/commodities/' },
-    { id: 'r2', title: 'Basmati Demand Surplus Anticipated in Gulf Retail Markets', source: 'Gulf News', aiImpact: 'POSITIVE', aiAction: 'Target high-margin retail channels in Dubai and Abu Dhabi.', url: 'https://gulfnews.com/business/commodities' },
-    { id: 'r3', title: 'Freight Costs Rise for Agri-Exporters on Main Corridors', source: 'Economic Times', aiImpact: 'HIGH NEGATIVE', aiAction: 'Optimize shipping routes and consolidate containers to reduce freight impact.', url: 'https://economictimes.indiatimes.com/news/economy/agriculture' },
-    { id: 'r4', title: 'Sona Masuri Yield Exceeds Estimates in Southern Belt', source: 'Financial Express', aiImpact: 'MODERATE', aiAction: 'Hold procurement bulk buys until prices drop next week.', url: 'https://www.financialexpress.com/market/commodities/' },
-    { id: 'r5', title: 'Saudi Arabia Relaxes Basmati Quality Import Tolerance', source: 'Arab News', aiImpact: 'POSITIVE', aiAction: 'Push slightly lower grade inventory into Saudi ports for improved margins.', url: 'https://www.arabnews.com/economy' },
-    { id: 'r6', title: 'New Irrigation Policies to Stabilize Long-Term Rice Supply', source: 'Economic Times', aiImpact: 'POSITIVE', aiAction: 'Align 5-year growth strategy with newly funded irrigation zones.', url: 'https://economictimes.indiatimes.com/news/economy/agriculture' },
-    { id: 'r7', title: 'Container Shortage at Key Ports Delays Rice Shipments by 10 Days', source: 'Gulf News', aiImpact: 'HIGH RISK', aiAction: 'Book containers 4 weeks in advance to ensure delivery SLAs.', url: 'https://gulfnews.com/business/commodities' },
-    { id: 'r8', title: 'Global Competitors Lower Prices on Broken Rice Variants', source: 'Arab News', aiImpact: 'MODERATE', aiAction: 'Match competitor pricing only for secondary grade stock.', url: 'https://www.arabnews.com/economy' },
-    { id: 'r9', title: 'Government Considers Lowering Export Floor Price for Premium Rice', source: 'Financial Express', aiImpact: 'POSITIVE', aiAction: 'Prepare marketing campaigns to capture increased EU market volume.', url: 'https://www.financialexpress.com/market/commodities/' },
-    { id: 'r10', title: 'Pachari Variety Sees Unexpected Demand Spike in East Asia', source: 'Economic Times', aiImpact: 'POSITIVE', aiAction: 'Allocate 15% of Pachari reserves for immediate East Asian export.', url: 'https://economictimes.indiatimes.com/news/economy/agriculture' }
+    { id: 'r1', title: 'India Maintains Non-Basmati Export Cap for Upcoming Trade Quarter', source: 'Financial Express', aiImpact: 'CRITICAL', aiAction: 'Diversify sourcing to non-capped regions immediately.' },
+    { id: 'r2', title: 'Basmati Demand Surplus Anticipated in Gulf Retail Markets', source: 'Gulf News', aiImpact: 'POSITIVE', aiAction: 'Target high-margin retail channels in Dubai and Abu Dhabi.' },
+    { id: 'r3', title: 'Freight Costs Rise for Agri-Exporters on Main Corridors', source: 'Economic Times', aiImpact: 'HIGH NEGATIVE', aiAction: 'Optimize shipping routes and consolidate containers to reduce freight impact.' },
+    { id: 'r4', title: 'Sona Masuri Yield Exceeds Estimates in Southern Belt', source: 'Financial Express', aiImpact: 'MODERATE', aiAction: 'Hold procurement bulk buys until prices drop next week.' },
+    { id: 'r5', title: 'Saudi Arabia Relaxes Basmati Quality Import Tolerance', source: 'Arab News', aiImpact: 'POSITIVE', aiAction: 'Push slightly lower grade inventory into Saudi ports for improved margins.' },
+    { id: 'r6', title: 'New Irrigation Policies to Stabilize Long-Term Rice Supply', source: 'Economic Times', aiImpact: 'POSITIVE', aiAction: 'Align 5-year growth strategy with newly funded irrigation zones.' },
+    { id: 'r7', title: 'Container Shortage at Key Ports Delays Rice Shipments by 10 Days', source: 'Gulf News', aiImpact: 'HIGH RISK', aiAction: 'Book containers 4 weeks in advance to ensure delivery SLAs.' },
+    { id: 'r8', title: 'Global Competitors Lower Prices on Broken Rice Variants', source: 'Arab News', aiImpact: 'MODERATE', aiAction: 'Match competitor pricing only for secondary grade stock.' },
+    { id: 'r9', title: 'Government Considers Lowering Export Floor Price for Premium Rice', source: 'Financial Express', aiImpact: 'POSITIVE', aiAction: 'Prepare marketing campaigns to capture increased EU market volume.' },
+    { id: 'r10', title: 'Pachari Variety Sees Unexpected Demand Spike in East Asia', source: 'Economic Times', aiImpact: 'POSITIVE', aiAction: 'Allocate 15% of Pachari reserves for immediate East Asian export.' }
   ]
 };
 

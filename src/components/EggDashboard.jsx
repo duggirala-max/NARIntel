@@ -4,6 +4,7 @@ import logo from '../assets/logo.png';
 import { scrapeMarketData } from '../services/marketScrapers';
 import { analyzeNewsIntelligence, analyzeDataIntelligence } from '../services/groqService';
 import ExportModal from './PDFExportModal';
+import InsightsModal from './InsightsModal';
 
 const whatsappShare = (text) => {
   const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -30,9 +31,27 @@ const EggDashboard = ({ onBack }) => {
   const [extractionResults, setExtractionResults] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showInsightsModal, setShowInsightsModal] = useState(false);
   const [workerStatus, setWorkerStatus] = useState('');
   const fileInputRef = useRef(null);
   const workerRef = useRef(null);
+
+  useEffect(() => {
+    const cached = localStorage.getItem('nar_egg_cache');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.timestamp < 6 * 60 * 60 * 1000) {
+          setDashboardData(parsed.data);
+          setIsDashboardActive(true);
+        } else {
+          localStorage.removeItem('nar_egg_cache');
+        }
+      } catch (e) {
+        localStorage.removeItem('nar_egg_cache');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     workerRef.current = new Worker(
@@ -47,9 +66,11 @@ const EggDashboard = ({ onBack }) => {
         const ai = await analyzeDataIntelligence(compactedSignal, currentPrice, 'egg');
         setDataIntelligence(ai);
         setWorkerStatus('');
+      } else if (status === 'PROGRESS') {
+        setWorkerStatus(message);
       } else if (status === 'ERROR') {
         console.error('Worker error:', message);
-        setWorkerStatus('Dataset processing failed.');
+        setWorkerStatus('Dataset processing failed: ' + message);
       }
     };
     return () => workerRef.current.terminate();
@@ -63,16 +84,32 @@ const EggDashboard = ({ onBack }) => {
     workerRef.current.postMessage({ action: 'PROCESS_DATA', file, hsCode: '0407' });
   };
 
-  const handleRunDashboard = async () => {
+  const handleRunDashboard = async (forceRefresh = false) => {
     setIsRunning(true);
     setIsDashboardActive(true);
     setDashboardData(null);
     setDataIntelligence(null);
     setExtractionResults(null);
     try {
+      if (!forceRefresh) {
+        const cached = localStorage.getItem('nar_egg_cache');
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (Date.now() - parsed.timestamp < 6 * 60 * 60 * 1000) {
+              setDashboardData(parsed.data);
+              setIsRunning(false);
+              return;
+            }
+          } catch(e) {}
+        }
+      }
+
       const rawMarketData = await scrapeMarketData('egg');
       const analyzedNews = await analyzeNewsIntelligence(rawMarketData.news, 'egg');
-      setDashboardData({ ...rawMarketData, news: analyzedNews });
+      const finalData = { ...rawMarketData, news: analyzedNews };
+      localStorage.setItem('nar_egg_cache', JSON.stringify({ timestamp: Date.now(), data: finalData }));
+      setDashboardData(finalData);
     } catch (e) {
       console.error('Dashboard run error:', e);
     } finally {
@@ -151,39 +188,52 @@ const EggDashboard = ({ onBack }) => {
               BACK TO HUB
             </button>
             {dashboardData?.rates && (
-              <div style={{ display: 'flex', gap: '0.8rem', backgroundColor: '#f8f9fa', padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid #eee' }}>
+              <div style={{ display: 'flex', gap: '1rem', backgroundColor: '#f8f9fa', padding: '0.5rem 1rem', borderRadius: '12px', border: '1px solid #eee' }}>
                 <div style={{ fontSize: '0.8rem' }}>
+                  <span style={{ color: '#888' }}>AED/INR </span>
                   <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.aed_inr}</strong>
-                  <span style={{ color: '#888' }}> AED</span>
                 </div>
                 <div style={{ fontSize: '0.8rem', borderLeft: '1px solid #ddd', paddingLeft: '0.8rem' }}>
+                  <span style={{ color: '#888' }}>USD/INR </span>
                   <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.usd_inr}</strong>
-                  <span style={{ color: '#888' }}> USD</span>
+                </div>
+                <div style={{ fontSize: '0.8rem', borderLeft: '1px solid #ddd', paddingLeft: '0.8rem' }}>
+                  <span style={{ color: '#888' }}>EUR/INR </span>
+                  <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.eur_inr}</strong>
                 </div>
               </div>
             )}
             {!isDashboardActive ? (
-              <button onClick={handleRunDashboard} className="nar-button" style={{ fontSize: '0.8rem' }}>
+              <button onClick={() => handleRunDashboard(false)} className="nar-button" style={{ fontSize: '0.8rem' }}>
                 Start Monitoring
               </button>
             ) : (
-              <button onClick={() => setShowExportModal(true)} className="nar-button" style={{ fontSize: '0.8rem' }}>
-                Generate Report
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button onClick={() => handleRunDashboard(true)} className="nar-button" style={{ fontSize: '0.8rem', backgroundColor: '#333' }}>
+                  Refresh Data
+                </button>
+                <button onClick={() => setShowExportModal(true)} className="nar-button" style={{ fontSize: '0.8rem' }}>
+                  Generate Report
+                </button>
+              </div>
             )}
           </div>
         )}
       </header>
 
       {isMobile && dashboardData?.rates && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '1.2rem', backgroundColor: '#f8f9fa', padding: '0.6rem', borderBottom: '1px solid #eee' }}>
-           <div style={{ fontSize: '0.75rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.8rem', backgroundColor: '#f8f9fa', padding: '0.6rem', borderBottom: '1px solid #eee' }}>
+           <div style={{ fontSize: '0.7rem' }}>
+             <span style={{ color: '#888' }}>AED/INR: </span>
              <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.aed_inr}</strong>
-             <span style={{ color: '#888' }}> AED/INR</span>
            </div>
-           <div style={{ fontSize: '0.75rem', borderLeft: '1px solid #ddd', paddingLeft: '1.2rem' }}>
+           <div style={{ fontSize: '0.7rem', borderLeft: '1px solid #ddd', paddingLeft: '0.8rem' }}>
+             <span style={{ color: '#888' }}>USD/INR: </span>
              <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.usd_inr}</strong>
-             <span style={{ color: '#888' }}> USD/INR</span>
+           </div>
+           <div style={{ fontSize: '0.7rem', borderLeft: '1px solid #ddd', paddingLeft: '0.8rem' }}>
+             <span style={{ color: '#888' }}>EUR/INR: </span>
+             <strong style={{ color: 'var(--nar-teal)' }}>{dashboardData.rates.eur_inr}</strong>
            </div>
         </div>
       )}
@@ -225,6 +275,11 @@ const EggDashboard = ({ onBack }) => {
                 <div style={{ fontSize: isMobile ? '2.2rem' : '2.8rem', fontWeight: 'bold', color: 'var(--nar-emerald)', letterSpacing: '-0.02em' }}>
                   INR {dashboardData?.namakkal || '0.00'}
                 </div>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.65rem' }}>
+                  <a href="https://e2necc.com/apps/home/neccrate" target="_blank" rel="noreferrer" style={{ color: '#888', textDecoration: 'underline' }}>
+                    Source: e2necc.com
+                  </a>
+                </div>
                 <button
                   onClick={shareMarketIndex}
                   style={{ marginTop: '1rem', background: 'none', border: '1px solid #333', color: '#aaa', borderRadius: '8px', padding: '0.4rem 0.8rem', fontSize: '0.65rem', cursor: 'pointer', textTransform: 'uppercase' }}
@@ -248,6 +303,12 @@ const EggDashboard = ({ onBack }) => {
                     <div style={{ backgroundColor: '#f9f9f9', padding: '1rem', borderRadius: '12px', fontSize: '0.8rem', color: '#333' }}>
                       <strong>Proposal:</strong> {dataIntelligence.monetizationDirective}
                     </div>
+                    <button 
+                      onClick={() => setShowInsightsModal(true)}
+                      style={{ width: '100%', padding: '0.6rem', fontSize: '0.75rem', backgroundColor: '#333', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer' }}
+                    >
+                      View Detailed Insights Matrix
+                    </button>
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '1.5rem', backgroundColor: '#fafafa', borderRadius: '14px', color: '#aaa', fontSize: '0.75rem' }}>
@@ -268,7 +329,7 @@ const EggDashboard = ({ onBack }) => {
             {/* News Column */}
             <div style={{ flex: 1, order: isMobile ? 2 : 1 }}>
               <h3 style={{ marginBottom: '1.5rem', fontSize: '0.8rem', textTransform: 'uppercase', color: '#888' }}>
-                Global Risk Intelligence
+                Global Risk Intelligence (10+ Signals)
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {dashboardData?.news?.map((news, i) => (
@@ -277,7 +338,15 @@ const EggDashboard = ({ onBack }) => {
                       <span style={{ fontSize: '0.7rem', color: 'var(--nar-teal)', fontWeight: 'bold' }}>{news.source}</span>
                       <ImpactBadge impact={news.aiImpact} />
                     </div>
-                    <h4 style={{ fontSize: '0.95rem', marginBottom: '0.8rem', color: '#111' }}>{news.title}</h4>
+                    <h4 style={{ fontSize: news.url ? '0.9rem' : '0.95rem', marginBottom: '0.8rem', color: '#111' }}>
+                      {news.url ? (
+                        <a href={news.url} target="_blank" rel="noreferrer" style={{ color: '#111', textDecoration: 'underline' }}>
+                          {news.title}
+                        </a>
+                      ) : (
+                        news.title
+                      )}
+                    </h4>
                     <p style={{ fontSize: '0.78rem', color: '#666', lineHeight: '1.5', margin: 0 }}>
                       <strong>Action:</strong> {news.aiAction}
                     </p>
@@ -299,6 +368,13 @@ const EggDashboard = ({ onBack }) => {
           dashboardData={exportModalData}
           dataIntelligence={dataIntelligence ? { ...dataIntelligence, extractionResults } : null}
           dashboardType="egg"
+        />
+      )}
+      {showInsightsModal && dataIntelligence && (
+        <InsightsModal 
+          onClose={() => setShowInsightsModal(false)}
+          extractionResults={extractionResults}
+          dataIntelligence={dataIntelligence}
         />
       )}
       <style>{`

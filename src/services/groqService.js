@@ -1,7 +1,7 @@
 //Built for Noor AL Reef by G.Duggirala from Raaya Global UG//
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'llama3-8b-8192';
+const MODEL = 'llama-3.3-70b-versatile';
 
 const groqRequest = async (apiKey, messages) => {
   const res = await fetch(GROQ_API_URL, {
@@ -26,7 +26,16 @@ const parseJSON = (raw) => {
   return JSON.parse(match[0]);
 };
 
+const cache = new Map();
+
 export const analyzeNewsIntelligence = async (newsItems, dashboardType = 'egg') => {
+  // Use 2-hour cache to avoid repeated AI calls for the same news set
+  const cacheKey = `news_${dashboardType}_${newsItems.length}_${newsItems[0]?.id || ''}`;
+  if (cache.has(cacheKey)) {
+    const entry = cache.get(cacheKey);
+    if (Date.now() - entry.timestamp < 2 * 60 * 60 * 1000) return entry.data;
+  }
+
   const keyEnv = dashboardType === 'rice'
     ? import.meta.env.VITE_GROQ_RICE_NEWS_KEY
     : import.meta.env.VITE_GROQ_EGG_NEWS_KEY;
@@ -44,26 +53,30 @@ export const analyzeNewsIntelligence = async (newsItems, dashboardType = 'egg') 
   const hsCode = dashboardType === 'rice' ? '1006' : '0407';
   const commodity = dashboardType === 'rice' ? 'rice' : 'egg';
 
-  const prompt = `You are an executive trade intelligence analyst for Noor AL Reef General Trading LLC, a Dubai-based importer of ${commodity} (HS ${hsCode}).
+  // Truncate titles to absolute minimum for token savings
+  const simplifiedNews = newsItems.map(n => ({ 
+    id: n.id, 
+    title: n.title.slice(0, 80), 
+    source: n.source 
+  }));
 
-Analyze the following news articles. For each article, provide:
-1. aiImpact: One of: CRITICAL, HIGH RISK, HIGH NEGATIVE, MODERATE, LOW, POSITIVE
-2. aiAction: A specific one-sentence operational directive for a Dubai-based importer. No EM dashes.
-
-Articles:
-${JSON.stringify(newsItems.map(n => ({ id: n.id, title: n.title, source: n.source })))}
-
-Respond ONLY with a JSON array: [{ "id": "...", "aiImpact": "...", "aiAction": "..." }]`;
+  const prompt = `You are a trade analyst for Noor AL Reef (HS ${hsCode}).
+Analyze articles. Format: JSON array [{ "id": "...", "aiImpact": "...", "aiAction": "..." }]
+Impact: CRITICAL, HIGH RISK, MODERATE, LOW, POSITIVE. 
+Action: one specific sentence for a Dubai importer.
+Articles: ${JSON.stringify(simplifiedNews)}`;
 
   try {
     const raw = await groqRequest(keyEnv, [{ role: 'user', content: prompt }]);
     const analyzed = parseJSON(raw);
-    return newsItems.map(item => {
+    const result = newsItems.map(item => {
       const match = analyzed.find(a => a.id === item.id);
       return match ? { ...item, aiImpact: match.aiImpact, aiAction: match.aiAction } : item;
     });
+    cache.set(cacheKey, { timestamp: Date.now(), data: result });
+    return result;
   } catch (err) {
-    console.error('News analysis failed:', err);
+    console.warn('News analysis failed, using fallback:', err.message);
     return newsItems.map(item => ({
       ...item,
       aiImpact: item.aiImpact || 'MODERATE',
@@ -73,81 +86,50 @@ Respond ONLY with a JSON array: [{ "id": "...", "aiImpact": "...", "aiAction": "
 };
 
 export const analyzeDataIntelligence = async (compactedSignal, currentMarketPrice, dashboardType = 'egg') => {
+  const cacheKey = `data_${dashboardType}_${compactedSignal.summary || ''}_${currentMarketPrice}`;
+  if (cache.has(cacheKey)) {
+    const entry = cache.get(cacheKey);
+    if (Date.now() - entry.timestamp < 2 * 60 * 60 * 1000) return entry.data;
+  }
+
   const keyEnv = dashboardType === 'rice'
     ? import.meta.env.VITE_GROQ_RICE_DATA_KEY
     : import.meta.env.VITE_GROQ_EGG_DATA_KEY;
 
   const isPlaceholder = !keyEnv || keyEnv.startsWith('placeholder');
-
   const marketPrice = parseFloat(String(currentMarketPrice).replace(/[^0-9.]/g, '')) || 0;
-  const topImporters = compactedSignal.topImporters || [];
+  const topImps = (compactedSignal.topImporters || []).slice(0, 20); // Limit to 20 for token safety
 
   if (isPlaceholder) {
-    const overMarket = topImporters.filter(imp => {
+    const overMarket = topImps.filter(imp => {
       const p = parseFloat(String(imp.avgPrice).replace(/[^0-9.]/g, '')) || 0;
       return dashboardType === 'egg' ? (p * 83 > marketPrice) : (p > marketPrice);
     }).length;
     return {
-      priceAudit: {
-        overMarketCount: overMarket,
-        underMarketCount: topImporters.length - overMarket,
-        insight: `${overMarket} importers are buying above the current market index.`
-      },
-      churnStatus: {
-        inactive30_90Days: compactedSignal.churnRegistry?.length || 0,
-        commentary: 'Review inactive partners for re-engagement opportunities.'
-      },
-      monetizationDirective: `Contact the ${overMarket} over-market importers with a competitive rate matching the current index to convert volume.`
+      priceAudit: { overMarketCount: overMarket, underMarketCount: topImps.length - overMarket, insight: `${overMarket} importers buying above index.` },
+      churnStatus: { inactive30_90Days: compactedSignal.churnRegistry?.length || 0, commentary: 'Check inactive partners.' },
+      monetizationDirective: `Contact ${overMarket} over-market importers with index-matched rates.`
     };
   }
 
-  const commodity = dashboardType === 'rice' ? 'rice (HS 1006)' : 'egg (HS 0407)';
-  const benchmark = dashboardType === 'rice' ? 'Rice Market Index' : 'NECC Namakkal Index';
-
-  const prompt = `You are a data intelligence analyst for Noor AL Reef General Trading LLC, a Dubai-based ${commodity} importer.
-
-Current ${benchmark}: ${currentMarketPrice}
-
-Compacted dataset (top importers by volume):
-${JSON.stringify(compactedSignal.topImporters?.slice(0, 30))}
-
-Churn candidates (inactive importers):
-${JSON.stringify(compactedSignal.churnRegistry?.slice(0, 10))}
-
-Provide analysis in this EXACT JSON format. No EM dashes. Be specific and actionable:
-{
-  "priceAudit": {
-    "overMarketCount": <number>,
-    "underMarketCount": <number>,
-    "insight": "<one sentence>"
-  },
-  "churnStatus": {
-    "inactive30_90Days": <number>,
-    "commentary": "<one sentence>"
-  },
-  "monetizationDirective": "<one actionable sentence for the sales team>"
-}`;
+  const commodity = dashboardType === 'rice' ? 'rice (1006)' : 'egg (0407)';
+  const prompt = `Noor AL Reef ${commodity} Data. Index: ${currentMarketPrice}.
+Top Importers: ${JSON.stringify(topImps)}.
+Churn: ${JSON.stringify((compactedSignal.churnRegistry || []).slice(0, 5))}.
+Return JSON: { "priceAudit": { "overMarketCount":0, "underMarketCount":0, "insight":"" }, "churnStatus": { "inactive30_90Days":0, "commentary":"" }, "monetizationDirective":"" }`;
 
   try {
     const raw = await groqRequest(keyEnv, [{ role: 'user', content: prompt }]);
-    return parseJSON(raw);
+    const result = parseJSON(raw);
+    cache.set(cacheKey, { timestamp: Date.now(), data: result });
+    return result;
   } catch (err) {
-    console.error('Data analysis failed:', err);
-    const overMarket = topImporters.filter(imp => {
-      const p = parseFloat(String(imp.avgPrice).replace(/[^0-9.]/g, '')) || 0;
-      return p * 83 > marketPrice;
-    }).length;
+    console.warn('Data analysis fallback:', err.message);
+    const over = topImps.filter(imp => (parseFloat(String(imp.avgPrice).replace(/[^0-9.]/g, '')) * 83) > marketPrice).length;
     return {
-      priceAudit: {
-        overMarketCount: overMarket,
-        underMarketCount: topImporters.length - overMarket,
-        insight: `${overMarket} importers are transacting above the current market index.`
-      },
-      churnStatus: {
-        inactive30_90Days: compactedSignal.churnRegistry?.length || 0,
-        commentary: 'Review inactive partners for re-engagement.'
-      },
-      monetizationDirective: `Prioritize outreach to the ${overMarket} over-market importers with index-matched pricing.`
+      priceAudit: { overMarketCount: over, underMarketCount: topImps.length - over, insight: `${over} importers above market.` },
+      churnStatus: { inactive30_90Days: compactedSignal.churnRegistry?.length || 0, commentary: 'Review inactives.' },
+      monetizationDirective: `Outreach to ${over} importers with matched pricing.`
     };
   }
 };
