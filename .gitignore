@@ -11,7 +11,4 @@ SAMPLE_DATA.xlsx
 *.xlsx
 *.csv
 
-# Brand Assets
-*.png
-*.jpeg
-*.jpg
+
