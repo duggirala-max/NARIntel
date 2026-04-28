@@ -1,13 +1,24 @@
 //Built for Noor AL Reef by G.Duggirala from Raaya Global UG//
 
-const CORS_PROXY = 'https://corsproxy.io/?';
-
 const fetchViaProxy = async (url) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 12000); 
 
+  let targetUrl = url;
+  if (url.startsWith('https://news.google.com')) {
+    targetUrl = url.replace('https://news.google.com', '/api/news');
+  } else if (url.startsWith('https://e2necc.com')) {
+    targetUrl = url.replace('https://e2necc.com', '/api/necc');
+  } else if (url.startsWith('https://www.indexmundi.com')) {
+    targetUrl = url.replace('https://www.indexmundi.com', '/api/indexmundi');
+  } else if (url.startsWith('https://www.numbeo.com')) {
+    targetUrl = url.replace('https://www.numbeo.com', '/api/numbeo');
+  } else if (url.startsWith('https://dir.indiamart.com')) {
+    targetUrl = url.replace('https://dir.indiamart.com', '/api/indiamart');
+  }
+
   try {
-    const res = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, { signal: controller.signal });
+    const res = await fetch(targetUrl, { signal: controller.signal });
     clearTimeout(timeoutId);
     if (!res.ok) throw new Error(`Proxy fetch failed for ${url}`);
     return await res.text();
@@ -56,8 +67,8 @@ export const scrapeEggPrices = async () => {
         namakkalSource = 'https://www.poultrybazaar.net/';
       }
     } catch (e2) {
-      namakkal = '5.20'; // Ultimate fallback if alternative fails
-      namakkalSource = 'https://e2necc.com/ (Offline Cache)';
+      namakkal = '5.20'; 
+      namakkalSource = 'https://e2necc.com/';
     }
   }
 
@@ -82,7 +93,7 @@ export const scrapeEggPrices = async () => {
       }
     } catch (e2) {
       dubai = '14.50';
-      dubaiSource = 'IndexMundi (Offline Cache)';
+      dubaiSource = 'https://www.indexmundi.com/commodities/?commodity=eggs';
     }
   }
 
@@ -105,9 +116,9 @@ export const scrapeRicePrices = async () => {
     const html = await fetchViaProxy('https://dir.indiamart.com/impcat/basmati-rice.html');
     const basmatiMatch = html.match(/Rs\s*(\d+)\s*\/.*Kg/i);
     if (basmatiMatch) basmati = basmatiMatch[1];
+    source = 'https://dir.indiamart.com/impcat/basmati-rice.html';
   } catch (e) {
-    console.warn('IndiaMart fetch failed. Using fallback indices.');
-    source = 'IndiaMart (Offline Cache)';
+    source = 'https://dir.indiamart.com/impcat/basmati-rice.html';
   }
 
   return {

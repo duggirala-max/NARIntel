@@ -1,0 +1,29 @@
+[[redirects]]
+  from = "/api/news/*"
+  to = "https://news.google.com/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/necc/*"
+  to = "https://e2necc.com/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/indexmundi/*"
+  to = "https://www.indexmundi.com/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/numbeo/*"
+  to = "https://www.numbeo.com/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/indiamart/*"
+  to = "https://dir.indiamart.com/:splat"
+  status = 200
+  force = true
