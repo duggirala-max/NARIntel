@@ -1,10 +1,9 @@
 //Built for Noor AL Reef by G.Duggirala from Raaya Global UG//
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import logo from '../assets/logo.png';
-import { scrapeMarketData } from '../services/marketScrapers';
-import { analyzeNewsIntelligence, analyzeDataIntelligence } from '../services/groqService';
+import { scrapeEggPrices, scrapeMarketNews, fetchCurrencyRates } from '../services/marketScrapers';
+import { analyzeNewsIntelligence } from '../services/groqService';
 import ExportModal from './PDFExportModal';
-import InsightsModal from './InsightsModal';
 
 const whatsappShare = (text) => {
   const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -24,122 +23,67 @@ const ImpactBadge = ({ impact }) => {
 };
 
 const EggDashboard = ({ onBack }) => {
-  const [isRunning, setIsRunning] = useState(false);
-  const [isDashboardActive, setIsDashboardActive] = useState(false);
-  const [dashboardData, setDashboardData] = useState(null);
-  const [dataIntelligence, setDataIntelligence] = useState(null);
-  const [extractionResults, setExtractionResults] = useState(null);
-  const [uploadedFile, setUploadedFile] = useState(null);
+  const [isNewsRunning, setIsNewsRunning] = useState(false);
+  const [dashboardData, setDashboardData] = useState({
+    namakkal: '5.20',
+    namakkalSource: 'https://e2necc.com/',
+    dubai: '14.50',
+    dubaiSource: 'https://www.indexmundi.com/commodities/?commodity=eggs',
+    rates: { aed_inr: '22.84', usd_inr: '83.92', eur_inr: '91.45' },
+    news: []
+  });
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showInsightsModal, setShowInsightsModal] = useState(false);
-  const [workerStatus, setWorkerStatus] = useState('');
-  const fileInputRef = useRef(null);
-  const workerRef = useRef(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
-    const cached = localStorage.getItem('nar_egg_cache');
-    if (cached) {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    
+    // Immediate price fetch on load
+    const loadPrices = async () => {
       try {
-        const parsed = JSON.parse(cached);
-        if (Date.now() - parsed.timestamp < 6 * 60 * 60 * 1000) {
-          setDashboardData(parsed.data);
-          setIsDashboardActive(true);
-        } else {
-          localStorage.removeItem('nar_egg_cache');
-        }
-      } catch (e) {
-        localStorage.removeItem('nar_egg_cache');
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    workerRef.current = new Worker(
-      new URL('../workers/dataWorker.js', import.meta.url), { type: 'module' }
-    );
-    workerRef.current.onmessage = async (e) => {
-      const { status, compactedSignal, message } = e.data;
-      if (status === 'SUCCESS') {
-        setExtractionResults(compactedSignal);
-        setWorkerStatus('Analyzing with AI...');
-        const currentPrice = dashboardData?.namakkal || '0';
-        const ai = await analyzeDataIntelligence(compactedSignal, currentPrice, 'egg');
-        setDataIntelligence(ai);
-        setWorkerStatus('');
-      } else if (status === 'PROGRESS') {
-        setWorkerStatus(message);
-      } else if (status === 'ERROR') {
-        console.error('Worker error:', message);
-        setWorkerStatus('Dataset processing failed: ' + message);
+        const eggPrices = await scrapeEggPrices();
+        const currencyRates = await fetchCurrencyRates();
+        setDashboardData(prev => ({
+          ...prev,
+          namakkal: eggPrices.namakkal,
+          namakkalSource: eggPrices.namakkalSource,
+          dubai: eggPrices.dubai,
+          dubaiSource: eggPrices.dubaiSource,
+          rates: currencyRates
+        }));
+      } catch (err) {
+        console.warn('Background price fetch failed.', err);
       }
     };
-    return () => workerRef.current.terminate();
-  }, [dashboardData?.namakkal]);
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setUploadedFile(file);
-    setWorkerStatus('Processing dataset...');
-    workerRef.current.postMessage({ action: 'PROCESS_DATA', file, hsCode: '0407' });
-  };
+    loadPrices();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  const handleRunDashboard = async (forceRefresh = false) => {
-    setIsRunning(true);
-    setIsDashboardActive(true);
-    setDashboardData(null);
-    setDataIntelligence(null);
-    setExtractionResults(null);
+  const handleRefreshNews = async () => {
+    setIsNewsRunning(true);
     try {
-      if (!forceRefresh) {
-        const cached = localStorage.getItem('nar_egg_cache');
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (Date.now() - parsed.timestamp < 6 * 60 * 60 * 1000) {
-              setDashboardData(parsed.data);
-              setIsRunning(false);
-              return;
-            }
-          } catch(e) {}
-        }
-      }
-
-      const rawMarketData = await scrapeMarketData('egg');
-      const analyzedNews = await analyzeNewsIntelligence(rawMarketData.news, 'egg');
-      const finalData = { ...rawMarketData, news: analyzedNews };
-      localStorage.setItem('nar_egg_cache', JSON.stringify({ timestamp: Date.now(), data: finalData }));
-      setDashboardData(finalData);
+      const rawNews = await scrapeMarketNews('egg');
+      const analyzedNews = await analyzeNewsIntelligence(rawNews, 'egg');
+      setDashboardData(prev => ({
+        ...prev,
+        news: analyzedNews
+      }));
     } catch (e) {
-      console.error('Dashboard run error:', e);
+      console.error('News refresh failed:', e);
     } finally {
-      setIsRunning(false);
+      setIsNewsRunning(false);
     }
   };
 
   const shareMarketIndex = () => {
     const d = dashboardData;
     whatsappShare(
-      `[NOOR AL REEF MARKET UPDATE]\nNamakkal Index: INR ${d.namakkal}\nTrend: ${d.trend || 'N/A'}\nAED/INR: ${d.rates?.aed_inr}\nUSD/INR: ${d.rates?.usd_inr}\nEUR/INR: ${d.rates?.eur_inr || 'N/A'}\n-- Noor AL Reef Executive Intelligence`
+      `[NOOR AL REEF MARKET UPDATE]\nDaily Namakkal Price: INR ${d.namakkal}\nDaily Dubai Price: ${d.dubai}\nAED/INR: ${d.rates?.aed_inr}\nUSD/INR: ${d.rates?.usd_inr}\nEUR/INR: ${d.rates?.eur_inr || 'N/A'}\n-- Noor AL Reef Executive Intelligence`
     );
   };
-
-  const exportModalData = {
-    ...dashboardData,
-    dataIntelligence: dataIntelligence ? {
-      ...dataIntelligence,
-      extractionResults
-    } : null
-  };
-
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-
-  React.useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fcfcfc', display: 'flex', flexDirection: 'column' }}>
@@ -148,11 +92,12 @@ const EggDashboard = ({ onBack }) => {
         <button onClick={onBack} className="nar-button" style={{ width: '100%', marginBottom: '1rem' }}>
           Back to Hub
         </button>
-        {isDashboardActive && !isRunning && (
-          <button onClick={() => { setShowExportModal(true); setIsMenuOpen(false); }} className="nar-button" style={{ width: '100%' }}>
-            Generate Report
-          </button>
-        )}
+        <button onClick={handleRefreshNews} className="nar-button" style={{ width: '100%', marginBottom: '1rem' }}>
+          Refresh News & Actions
+        </button>
+        <button onClick={() => { setShowExportModal(true); setIsMenuOpen(false); }} className="nar-button" style={{ width: '100%' }}>
+          Generate Report
+        </button>
       </div>
 
       <header style={{
@@ -203,20 +148,12 @@ const EggDashboard = ({ onBack }) => {
                 </div>
               </div>
             )}
-            {!isDashboardActive ? (
-              <button onClick={() => handleRunDashboard(false)} className="nar-button" style={{ fontSize: '0.8rem' }}>
-                Start Monitoring
-              </button>
-            ) : (
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button onClick={() => handleRunDashboard(true)} className="nar-button" style={{ fontSize: '0.8rem', backgroundColor: '#333' }}>
-                  Refresh Data
-                </button>
-                <button onClick={() => setShowExportModal(true)} className="nar-button" style={{ fontSize: '0.8rem' }}>
-                  Generate Report
-                </button>
-              </div>
-            )}
+            <button onClick={() => setShowExportModal(true)} className="nar-button" style={{ fontSize: '0.8rem', backgroundColor: '#333' }}>
+              Generate Report
+            </button>
+            <button onClick={handleRefreshNews} className="nar-button" style={{ fontSize: '0.8rem' }}>
+              {isNewsRunning ? 'Analyzing News...' : 'Refresh News & Actions'}
+            </button>
           </div>
         )}
       </header>
@@ -239,100 +176,67 @@ const EggDashboard = ({ onBack }) => {
       )}
 
       <main style={{ padding: isMobile ? '1.5rem' : '3rem', flex: 1 }}>
-        {!isDashboardActive ? (
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '50vh', textAlign: 'center' }}>
-            <div style={{ width: '4px', height: '60px', backgroundColor: 'var(--nar-orange)', marginBottom: '1.5rem' }} />
-            <h2 style={{ fontSize: isMobile ? '1.4rem' : '1.8rem', marginBottom: '1rem', fontWeight: '500' }}>
-              Surveillance Ready
-            </h2>
-            <p style={{ color: '#666', maxWidth: '400px', lineHeight: '1.6', fontSize: '0.85rem' }}>
-              Select <strong>"Start Monitoring"</strong> to synchronize with the latest market indicators.
-            </p>
-            {isMobile && (
-              <button onClick={handleRunDashboard} className="nar-button" style={{ marginTop: '2rem', width: '100%' }}>
-                Start Dashboard Monitoring
-              </button>
-            )}
-          </div>
-        ) : isRunning ? (
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-            <div className="spinner" />
-            <p style={{ marginTop: '1.5rem', color: 'var(--nar-orange)', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.75rem' }}>
-              Compiling Data...
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '2rem' }}>
+          
+          {/* Sidebar */}
+          <div style={{ flex: isMobile ? 'none' : '0 0 320px', display: 'flex', flexDirection: 'column', gap: '1.5rem', order: isMobile ? 1 : 2 }}>
             
-            {/* Sidebar (Moved top for mobile) */}
-            <div style={{ flex: isMobile ? 'none' : '0 0 320px', display: 'flex', flexDirection: 'column', gap: '1.5rem', order: isMobile ? 1 : 2 }}>
-              
-              {/* Namakkal Index */}
-              <div style={{ backgroundColor: 'var(--nar-black)', color: 'white', padding: isMobile ? '2rem' : '2.5rem', borderRadius: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
-                <div style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', marginBottom: '0.5rem', fontWeight: '600' }}>
-                  Market Index (Namakkal)
-                </div>
-                <div style={{ fontSize: isMobile ? '2.2rem' : '2.8rem', fontWeight: 'bold', color: 'var(--nar-emerald)', letterSpacing: '-0.02em' }}>
-                  INR {dashboardData?.namakkal || '0.00'}
-                </div>
-                <div style={{ marginTop: '0.5rem', fontSize: '0.65rem' }}>
-                  <a href="https://e2necc.com/apps/home/neccrate" target="_blank" rel="noreferrer" style={{ color: '#888', textDecoration: 'underline' }}>
-                    Source: e2necc.com
-                  </a>
-                </div>
-                <button
-                  onClick={shareMarketIndex}
-                  style={{ marginTop: '1rem', background: 'none', border: '1px solid #333', color: '#aaa', borderRadius: '8px', padding: '0.4rem 0.8rem', fontSize: '0.65rem', cursor: 'pointer', textTransform: 'uppercase' }}
-                >
-                  &#128172; Share Index
-                </button>
+            {/* Namakkal Card */}
+            <div style={{ backgroundColor: 'var(--nar-black)', color: 'white', padding: isMobile ? '2rem' : '2.5rem', borderRadius: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+              <div style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Daily Price (Namakkal)
               </div>
-
-              {/* Bulk Analytics */}
-              <div style={{ border: '1px solid #eee', padding: isMobile ? '1.8rem' : '2.5rem', borderRadius: '28px', backgroundColor: 'white' }}>
-                <h4 style={{ marginBottom: '1.2rem', fontSize: '0.8rem', color: '#111', textTransform: 'uppercase' }}>
-                  Bulk Analytics
-                </h4>
-                {dataIntelligence ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                    <div style={{ borderLeft: '3px solid var(--nar-emerald)', paddingLeft: '1rem' }}>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '600' }}>
-                        {dataIntelligence.priceAudit?.overMarketCount} Higher Index
-                      </div>
-                    </div>
-                    <div style={{ backgroundColor: '#f9f9f9', padding: '1rem', borderRadius: '12px', fontSize: '0.8rem', color: '#333' }}>
-                      <strong>Proposal:</strong> {dataIntelligence.monetizationDirective}
-                    </div>
-                    <button 
-                      onClick={() => setShowInsightsModal(true)}
-                      style={{ width: '100%', padding: '0.6rem', fontSize: '0.75rem', backgroundColor: '#333', color: 'white', borderRadius: '12px', border: 'none', cursor: 'pointer' }}
-                    >
-                      View Detailed Insights Matrix
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '1.5rem', backgroundColor: '#fafafa', borderRadius: '14px', color: '#aaa', fontSize: '0.75rem' }}>
-                    {workerStatus || 'Awaiting bulk dataset.'}
-                  </div>
-                )}
-                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.xls,.csv" style={{ display: 'none' }} />
-                <button
-                  onClick={() => fileInputRef.current.click()}
-                  style={{ width: '100%', marginTop: '1.5rem', padding: '0.8rem', fontSize: '0.8rem' }}
-                  className="nar-button-primary"
-                >
-                  {uploadedFile ? 'Dataset Sync' : 'Upload Data'}
-                </button>
+              <div style={{ fontSize: isMobile ? '2.2rem' : '2.8rem', fontWeight: 'bold', color: 'var(--nar-emerald)', letterSpacing: '-0.02em' }}>
+                INR {dashboardData.namakkal}
+              </div>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.65rem' }}>
+                <a href={dashboardData.namakkalSource} target="_blank" rel="noreferrer" style={{ color: '#888', textDecoration: 'underline' }}>
+                  Source Link
+                </a>
               </div>
             </div>
 
-            {/* News Column */}
-            <div style={{ flex: 1, order: isMobile ? 2 : 1 }}>
-              <h3 style={{ marginBottom: '1.5rem', fontSize: '0.8rem', textTransform: 'uppercase', color: '#888' }}>
-                Global Risk Intelligence (10+ Signals)
-              </h3>
+            {/* Dubai Card */}
+            <div style={{ backgroundColor: 'var(--nar-black)', color: 'white', padding: isMobile ? '2rem' : '2.5rem', borderRadius: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+              <div style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', marginBottom: '0.5rem', fontWeight: '600' }}>
+                Daily Price (Dubai)
+              </div>
+              <div style={{ fontSize: isMobile ? '2.2rem' : '2.8rem', fontWeight: 'bold', color: 'var(--nar-emerald)', letterSpacing: '-0.02em' }}>
+                {dashboardData.dubai}
+              </div>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.65rem' }}>
+                <a href={dashboardData.dubaiSource} target="_blank" rel="noreferrer" style={{ color: '#888', textDecoration: 'underline' }}>
+                  Source Link
+                </a>
+              </div>
+              <button
+                onClick={shareMarketIndex}
+                style={{ marginTop: '1rem', background: 'none', border: '1px solid #333', color: '#aaa', borderRadius: '8px', padding: '0.4rem 0.8rem', fontSize: '0.65rem', cursor: 'pointer', textTransform: 'uppercase' }}
+              >
+                &#128172; Share Prices
+              </button>
+            </div>
+
+          </div>
+
+          {/* News Column */}
+          <div style={{ flex: 1, order: isMobile ? 2 : 1 }}>
+            <h3 style={{ marginBottom: '1.5rem', fontSize: '0.8rem', textTransform: 'uppercase', color: '#888' }}>
+              Global Risk Intelligence
+            </h3>
+            
+            {isNewsRunning ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem' }}>
+                <div className="spinner" />
+                <p style={{ color: '#888', marginTop: '1rem', fontSize: '0.8rem' }}>Scraping news and gathering intelligence...</p>
+              </div>
+            ) : dashboardData.news.length === 0 ? (
+              <div style={{ padding: '2rem', backgroundColor: '#fafafa', border: '1px dashed #ccc', borderRadius: '24px', textAlign: 'center', color: '#aaa' }}>
+                No news currently refreshed. Click "Refresh News & Actions" above to update.
+              </div>
+            ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {dashboardData?.news?.map((news, i) => (
+                {dashboardData.news.map((news, i) => (
                   <div key={i} style={{ backgroundColor: 'white', padding: isMobile ? '1.5rem' : '2rem', borderRadius: '24px', border: '1px solid #f0f0f0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
                       <span style={{ fontSize: '0.7rem', color: 'var(--nar-teal)', fontWeight: 'bold' }}>{news.source}</span>
@@ -347,15 +251,19 @@ const EggDashboard = ({ onBack }) => {
                         news.title
                       )}
                     </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#666', lineHeight: '1.5', margin: 0 }}>
-                      <strong>Action:</strong> {news.aiAction}
+                    <p style={{ fontSize: '0.78rem', color: '#333', lineHeight: '1.5', margin: '0 0 0.5rem 0' }}>
+                      <strong>Dubai Importer Action:</strong> {news.aiActionDubai}
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: '#555', lineHeight: '1.5', margin: 0 }}>
+                      <strong>Indian Exporter Action:</strong> {news.aiActionIndia}
                     </p>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
           </div>
-        )}
+
+        </div>
       </main>
 
       <footer style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: '0.7rem', borderTop: '1px solid #eee' }}>
@@ -365,24 +273,19 @@ const EggDashboard = ({ onBack }) => {
       {showExportModal && (
         <ExportModal
           onClose={() => setShowExportModal(false)}
-          dashboardData={exportModalData}
-          dataIntelligence={dataIntelligence ? { ...dataIntelligence, extractionResults } : null}
+          dashboardData={dashboardData}
           dashboardType="egg"
         />
       )}
-      {showInsightsModal && dataIntelligence && (
-        <InsightsModal 
-          onClose={() => setShowInsightsModal(false)}
-          extractionResults={extractionResults}
-          dataIntelligence={dataIntelligence}
-        />
-      )}
+
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top: 4px solid var(--nar-orange); border-radius: 50%; animation: spin 1s linear infinite; }
       `}</style>
     </div>
+
   );
 };
 
 export default EggDashboard;
+

@@ -82,11 +82,12 @@ export const generateProfessionalPDF = async (data, mode, dashboardType = 'egg')
     doc.text('Global Risk Monitoring Alert Summary', 15, yPos);
     yPos += 4;
 
+    const newsUrls = (data.news || []).map(item => item.url || '');
     const newsData = (data.news || []).map(item => [
       item.source || '',
       item.title || '',
       item.aiImpact || '',
-      item.aiAction || ''
+      `Dubai: ${item.aiActionDubai || ''}\nIndia: ${item.aiActionIndia || ''}`
     ]);
 
     autoTable(doc, {
@@ -101,6 +102,20 @@ export const generateProfessionalPDF = async (data, mode, dashboardType = 'egg')
         1: { cellWidth: 60 },
         2: { cellWidth: 22 },
         3: { cellWidth: 70 }
+      },
+      didDrawCell: (cellData) => {
+        if (cellData.column.index === 1 && cellData.cell.section === 'body') {
+          const url = newsUrls[cellData.row.index];
+          if (url) {
+            doc.link(
+              cellData.cell.x,
+              cellData.cell.y,
+              cellData.cell.width,
+              cellData.cell.height,
+              { url: url }
+            );
+          }
+        }
       }
     });
 

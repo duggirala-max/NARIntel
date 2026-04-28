@@ -29,8 +29,7 @@ const parseJSON = (raw) => {
 const cache = new Map();
 
 export const analyzeNewsIntelligence = async (newsItems, dashboardType = 'egg') => {
-  // Use 2-hour cache to avoid repeated AI calls for the same news set
-  const cacheKey = `news_${dashboardType}_${newsItems.length}_${newsItems[0]?.id || ''}`;
+  const cacheKey = `news_v2_${dashboardType}_${newsItems.length}_${newsItems[0]?.id || ''}`;
   if (cache.has(cacheKey)) {
     const entry = cache.get(cacheKey);
     if (Date.now() - entry.timestamp < 2 * 60 * 60 * 1000) return entry.data;
@@ -45,15 +44,13 @@ export const analyzeNewsIntelligence = async (newsItems, dashboardType = 'egg') 
   if (isPlaceholder) {
     return newsItems.map(item => ({
       ...item,
-      aiImpact: item.aiImpact || 'HIGH RISK',
-      aiAction: item.aiAction || 'Monitor closely and consult procurement team before committing to new orders.'
+      aiImpact: item.aiImpact || 'MODERATE',
+      aiActionDubai: 'Monitor volume limits and prepare contingency logistics buffers.',
+      aiActionIndia: 'Optimize supply parameters and negotiate fixed rates early.'
     }));
   }
 
   const hsCode = dashboardType === 'rice' ? '1006' : '0407';
-  const commodity = dashboardType === 'rice' ? 'rice' : 'egg';
-
-  // Truncate titles to absolute minimum for token savings
   const simplifiedNews = newsItems.map(n => ({ 
     id: n.id, 
     title: n.title.slice(0, 80), 
@@ -61,9 +58,9 @@ export const analyzeNewsIntelligence = async (newsItems, dashboardType = 'egg') 
   }));
 
   const prompt = `You are a trade analyst for Noor AL Reef (HS ${hsCode}).
-Analyze articles. Format: JSON array [{ "id": "...", "aiImpact": "...", "aiAction": "..." }]
-Impact: CRITICAL, HIGH RISK, MODERATE, LOW, POSITIVE. 
-Action: one specific sentence for a Dubai importer.
+Analyze these articles. Return ONLY a valid JSON array using this exact schema:
+[{ "id": "...", "aiImpact": "CRITICAL/HIGH RISK/MODERATE/POSITIVE", "aiActionDubai": "one direct tactical sentence for a Dubai importer", "aiActionIndia": "one direct tactical sentence for an Indian exporter" }]
+Strictly avoid any conversational text or trailing commentary.
 Articles: ${JSON.stringify(simplifiedNews)}`;
 
   try {
@@ -71,65 +68,33 @@ Articles: ${JSON.stringify(simplifiedNews)}`;
     const analyzed = parseJSON(raw);
     const result = newsItems.map(item => {
       const match = analyzed.find(a => a.id === item.id);
-      return match ? { ...item, aiImpact: match.aiImpact, aiAction: match.aiAction } : item;
+      return match ? { 
+        ...item, 
+        aiImpact: match.aiImpact, 
+        aiActionDubai: match.aiActionDubai, 
+        aiActionIndia: match.aiActionIndia 
+      } : {
+        ...item,
+        aiImpact: 'MODERATE',
+        aiActionDubai: 'Verify capacity constraints.',
+        aiActionIndia: 'Review export cost thresholds.'
+      };
     });
     cache.set(cacheKey, { timestamp: Date.now(), data: result });
     return result;
   } catch (err) {
-    console.warn('News analysis failed, using fallback:', err.message);
+    console.warn('News analysis failed, returning baseline perspectives:', err.message);
     return newsItems.map(item => ({
       ...item,
       aiImpact: item.aiImpact || 'MODERATE',
-      aiAction: item.aiAction || 'Review market conditions before committing to procurement changes.'
+      aiActionDubai: 'Maintain general cargo reserves.',
+      aiActionIndia: 'Secure shipping windows.'
     }));
   }
 };
 
-export const analyzeDataIntelligence = async (compactedSignal, currentMarketPrice, dashboardType = 'egg') => {
-  const cacheKey = `data_${dashboardType}_${compactedSignal.summary || ''}_${currentMarketPrice}`;
-  if (cache.has(cacheKey)) {
-    const entry = cache.get(cacheKey);
-    if (Date.now() - entry.timestamp < 2 * 60 * 60 * 1000) return entry.data;
-  }
-
-  const keyEnv = dashboardType === 'rice'
-    ? import.meta.env.VITE_GROQ_RICE_DATA_KEY
-    : import.meta.env.VITE_GROQ_EGG_DATA_KEY;
-
-  const isPlaceholder = !keyEnv || keyEnv.startsWith('placeholder');
-  const marketPrice = parseFloat(String(currentMarketPrice).replace(/[^0-9.]/g, '')) || 0;
-  const topImps = (compactedSignal.topImporters || []).slice(0, 20); // Limit to 20 for token safety
-
-  if (isPlaceholder) {
-    const overMarket = topImps.filter(imp => {
-      const p = parseFloat(String(imp.avgPrice).replace(/[^0-9.]/g, '')) || 0;
-      return dashboardType === 'egg' ? (p * 83 > marketPrice) : (p > marketPrice);
-    }).length;
-    return {
-      priceAudit: { overMarketCount: overMarket, underMarketCount: topImps.length - overMarket, insight: `${overMarket} importers buying above index.` },
-      churnStatus: { inactive30_90Days: compactedSignal.churnRegistry?.length || 0, commentary: 'Check inactive partners.' },
-      monetizationDirective: `Contact ${overMarket} over-market importers with index-matched rates.`
-    };
-  }
-
-  const commodity = dashboardType === 'rice' ? 'rice (1006)' : 'egg (0407)';
-  const prompt = `Noor AL Reef ${commodity} Data. Index: ${currentMarketPrice}.
-Top Importers: ${JSON.stringify(topImps)}.
-Churn: ${JSON.stringify((compactedSignal.churnRegistry || []).slice(0, 5))}.
-Return JSON: { "priceAudit": { "overMarketCount":0, "underMarketCount":0, "insight":"" }, "churnStatus": { "inactive30_90Days":0, "commentary":"" }, "monetizationDirective":"" }`;
-
-  try {
-    const raw = await groqRequest(keyEnv, [{ role: 'user', content: prompt }]);
-    const result = parseJSON(raw);
-    cache.set(cacheKey, { timestamp: Date.now(), data: result });
-    return result;
-  } catch (err) {
-    console.warn('Data analysis fallback:', err.message);
-    const over = topImps.filter(imp => (parseFloat(String(imp.avgPrice).replace(/[^0-9.]/g, '')) * 83) > marketPrice).length;
-    return {
-      priceAudit: { overMarketCount: over, underMarketCount: topImps.length - over, insight: `${over} importers above market.` },
-      churnStatus: { inactive30_90Days: compactedSignal.churnRegistry?.length || 0, commentary: 'Review inactives.' },
-      monetizationDirective: `Outreach to ${over} importers with matched pricing.`
-    };
-  }
+export const analyzeDataIntelligence = async () => {
+  // Disabled: Bulk Analytics capability removed per mandate
+  return null;
 };
+
